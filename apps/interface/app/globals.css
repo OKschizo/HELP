@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+  --bg:#0A0E13;
+  --bg-elevated:#111827;
+  --bg-subtle:#1F2937;
+  --fg-default:#F9FAFB;
+  --fg-muted:#D1D5DB;
+  --stroke-soft:rgba(255,255,255,.1);
+}
+
+body{background:var(--bg);color:var(--fg-default)}
+

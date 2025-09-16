@@ -27,11 +27,16 @@ export default function Providers({ children }: { children: React.ReactNode }){
       </ThemeProvider>
     )
   }
-  // Temporarily disable wagmi/auth to isolate the issue
   return (
     <ThemeProvider attribute="class" defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
-        {children}
+        <WagmiProvider config={makeWagmiConfig()}>
+          <RainbowKitProvider theme={darkTheme()}>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </RainbowKitProvider>
+        </WagmiProvider>
         <Toaster 
           theme="dark" 
           position="top-right"

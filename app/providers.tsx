@@ -27,28 +27,29 @@ export default function Providers({ children }: { children: React.ReactNode }){
       </ThemeProvider>
     )
   }
+  const wagmiConfig = makeWagmiConfig()
   return (
     <ThemeProvider attribute="class" defaultTheme="dark">
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={makeWagmiConfig()}>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
           <RainbowKitProvider theme={darkTheme()}>
             <AuthProvider>
               {children}
+              <Toaster 
+                theme="dark" 
+                position="top-right"
+                toastOptions={{
+                  style: {
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--stroke-soft)',
+                    color: 'var(--fg-default)',
+                  },
+                }}
+              />
             </AuthProvider>
           </RainbowKitProvider>
-        </WagmiProvider>
-        <Toaster 
-          theme="dark" 
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--stroke-soft)',
-              color: 'var(--fg-default)',
-            },
-          }}
-        />
-      </QueryClientProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </ThemeProvider>
   )
 }

@@ -2,21 +2,15 @@ import { parseEther } from 'viem'
 import FactoryArtifact from '../../../packages/contracts/artifacts/contracts/HyperLaunch721FactoryV2_Optimized.sol/HyperLaunch721FactoryV2.json'
 import ImplementationArtifact from '../../../packages/contracts/artifacts/contracts/HyperLaunchERC721_ImplV2_Optimized.sol/HyperLaunchERC721_ImplV2.json'
 
-// On-chain deployed addresses
 export const FACTORY_ADDRESS = '0x5358ee860134900E66Ea63A39C3c57FD362aE17a'
 export const IMPLEMENTATION_ADDRESS = '0xeDd7d0032552CC17d9F458fE62a7e2ce3cf58f9F'
 
-// ABIs sourced directly from compiled artifacts to ensure exact match
-export const FACTORY_ABI = FactoryArtifact.abi
-export const IMPLEMENTATION_ABI = ImplementationArtifact.abi
+export const FACTORY_ABI = (FactoryArtifact as any).abi
+export const IMPLEMENTATION_ABI = (ImplementationArtifact as any).abi
 
-// Backward-compat alias used elsewhere in the app
 export const V2_FACTORY_ABI = FACTORY_ABI
-
-// Active chain id (defaults to HyperEVM 999)
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 999)
 
-// Sale configuration interface (V2 compatible)
 export interface SaleConfig {
   publicPriceWei: bigint
   allowlistPriceWei: bigint
@@ -28,7 +22,6 @@ export interface SaleConfig {
   txLimit: number
 }
 
-// Factory deployment parameters interface
 export interface FactoryDeploymentParams {
   name: string
   symbol: string
@@ -41,7 +34,6 @@ export interface FactoryDeploymentParams {
   merkleRoot: `0x${string}`
 }
 
-// Helper function to create sale config
 export function createSaleConfig(params: {
   publicPrice: string
   allowlistPrice?: string
@@ -53,7 +45,6 @@ export function createSaleConfig(params: {
   txLimit: number
 }): SaleConfig {
   const now = Math.floor(Date.now() / 1000)
-  
   return {
     publicPriceWei: parseEther(params.publicPrice),
     allowlistPriceWei: parseEther(params.allowlistPrice || params.publicPrice),
@@ -66,9 +57,7 @@ export function createSaleConfig(params: {
   }
 }
 
-// Helper function to prepare factory deployment arguments
 export function prepareFactoryDeploymentArgs(params: FactoryDeploymentParams) {
-  // V2 Factory expects: name, symbol, maxSupply, baseURI, payout, royaltyReceiver, royaltyBps, sale, merkleRoot, salt
   return [
     params.name,
     params.symbol,
@@ -88,13 +77,10 @@ export function prepareFactoryDeploymentArgs(params: FactoryDeploymentParams) {
       maxPerTx: params.saleConfig.txLimit,
     },
     params.merkleRoot,
-    '0x0000000000000000000000000000000000000000000000000000000000000000' // salt (zero for non-deterministic)
+    '0x0000000000000000000000000000000000000000000000000000000000000000'
   ] as const
 }
 
-// Helper function to convert ETH to Wei
 export function ethToWei(ethAmount: string): string {
   return parseEther(ethAmount).toString()
 }
-
-// (legacy inline ABI removed in favor of artifacts)

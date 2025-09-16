@@ -1,0 +1,35 @@
+{
+  "name": "contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "hardhat": "hardhat",
+    "deploy:implementation": "npx hardhat run scripts/deploy-implementation.ts",
+    "deploy:factory": "npx hardhat run scripts/deploy-factory.ts", 
+    "deploy:all": "npx hardhat run scripts/deploy-all.ts",
+    "verify": "npx hardhat run scripts/verify-contracts.ts",
+    "deploy:testnet": "npx hardhat run scripts/deploy-all.ts --network hyperevmTestnet",
+    "deploy:mainnet": "npx hardhat run scripts/deploy-all.ts --network hyperevm",
+    "verify:testnet": "npx hardhat run scripts/verify-contracts.ts --network hyperevmTestnet",
+    "verify:mainnet": "npx hardhat run scripts/verify-contracts.ts --network hyperevm",
+    "update-frontend:testnet": "npx hardhat run scripts/update-frontend-config.ts -- testnet",
+    "update-frontend:mainnet": "npx hardhat run scripts/update-frontend-config.ts -- mainnet",
+    "deploy:interactive": "node scripts/interactive-deploy.cjs",
+    "prepare:remix": "node scripts/prepare-for-remix.cjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.10",
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0",
+    "erc721a": "^4.3.0",
+    "ethers": "^6.13.0"
+  }
+}

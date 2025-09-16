@@ -1,0 +1,56 @@
+{
+  "title": "HELP Links - Hyper Ethereal Launch Platform",
+  "subtitle": "Everything you need to launch on HyperEVM",
+  "items": [
+    {
+      "label": "Create a Collection",
+      "href": "/create",
+      "variant": "primary"
+    },
+    {
+      "label": "Mint (Example)",
+      "href": "/mint-pro/0xYourCollectionAddress",
+      "variant": "glass"
+    },
+    {
+      "label": "Manage a Collection",
+      "href": "/manage/0xYourCollectionAddress",
+      "variant": "glass"
+    },
+    {
+      "label": "Docs",
+      "href": "/docs",
+      "variant": "glass"
+    },
+    {
+      "label": "Add HyperEVM Network",
+      "href": "action:add-network",
+      "variant": "glass"
+    },
+    {
+      "label": "Explorer",
+      "href": "https://hyperevmscan.io",
+      "variant": "glass"
+    },
+    {
+      "label": "Get HYPE (Gas)",
+      "href": "https://hyperevmscan.io/",
+      "variant": "glass"
+    },
+    {
+      "label": "Twitter",
+      "href": "https://x.com/",
+      "variant": "glass"
+    },
+    {
+      "label": "Discord",
+      "href": "https://discord.com/",
+      "variant": "glass"
+    },
+    {
+      "label": "Support",
+      "href": "mailto:support@example.com",
+      "variant": "glass"
+    }
+  ]
+}

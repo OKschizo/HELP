@@ -1,0 +1,70 @@
+{
+  "compiler": {
+    "version": "0.8.20",
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "paris",
+      "viaIR": true
+    }
+  },
+  "networks": {
+    "hyperevmTestnet": {
+      "name": "HyperEVM Testnet",
+      "rpcUrl": "https://rpc.hyperliquid-testnet.xyz/evm",
+      "chainId": 998,
+      "explorer": "https://explorer.hyperliquid-testnet.xyz"
+    },
+    "hyperevmMainnet": {
+      "name": "HyperEVM Mainnet",
+      "rpcUrl": "https://rpc.hyperliquid.xyz/evm",
+      "chainId": 999,
+      "explorer": "https://explorer.hyperliquid.xyz"
+    }
+  },
+  "deploymentOrder": [
+    {
+      "step": 1,
+      "contract": "HyperLaunchERC721_ImplV2_Optimized",
+      "constructorParams": [],
+      "description": "Deploy implementation contract (stack-depth optimized)"
+    },
+    {
+      "step": 2,
+      "contract": "HyperLaunch721FactoryV2_Optimized",
+      "constructorParams": [
+        {
+          "name": "impl",
+          "type": "address",
+          "description": "Implementation contract address from step 1",
+          "example": "0x1234567890123456789012345678901234567890"
+        },
+        {
+          "name": "feeReceiver",
+          "type": "address",
+          "description": "Platform fee receiver (usually your wallet)",
+          "example": "0x1234567890123456789012345678901234567890"
+        },
+        {
+          "name": "feeBps",
+          "type": "uint96",
+          "description": "Platform fee in basis points (250 = 2.5%)",
+          "example": "250"
+        }
+      ],
+      "description": "Deploy factory contract with implementation address"
+    }
+  ],
+  "gasLimits": {
+    "HyperLaunchERC721_ImplV2_Optimized": 6000000,
+    "HyperLaunch721FactoryV2_Optimized": 3000000
+  },
+  "stackTooDeepFix": {
+    "enabled": true,
+    "solution": "Use HyperLaunchERC721_ImplV2_Optimized.sol with Via IR compilation",
+    "viaIR": true,
+    "optimization": true
+  }
+}

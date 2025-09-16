@@ -1,0 +1,13 @@
+{
+  "name": "adfsdf",
+  "symbol": "EFSEFS",
+  "maxSupply": 3,
+  "priceWei": "50000000000000000",
+  "maxPerWallet": 5,
+  "maxPerTx": 3,
+  "royaltyReceiver": "0x0000000000000000000000000000000000000000",
+  "royaltyBps": 500,
+  "feeRecipient": "0x0000000000000000000000000000000000000000",
+  "feeBps": 250,
+  "placeholderURI": ""
+}

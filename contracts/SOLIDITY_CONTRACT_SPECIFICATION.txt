@@ -1,0 +1,325 @@
+COMPLETE SOLIDITY CONTRACT SPECIFICATION FOR AI AGENT
+=====================================================
+
+CONTRACT OVERVIEW
+=================
+Build TWO interconnected smart contracts for NFT launch platform:
+1. HyperLaunchERC721_ImplV2_Optimized.sol - NFT Implementation Contract
+2. HyperLaunch721FactoryV2_Optimized.sol - Factory Contract
+
+ARCHITECTURE: EIP-1167 Minimal Proxy (Clone Factory)
+- Deploy ONE implementation contract (template)
+- Deploy factory that creates cheap "clones" of template
+- Each clone = separate NFT collection sharing same code
+
+CONTRACT 1: HyperLaunchERC721_ImplV2_Optimized.sol
+==================================================
+
+PURPOSE: NFT collection with public sales, allowlist sales, royalties, platform fees
+
+TECHNICAL REQUIREMENTS:
+pragma solidity 0.8.20;
+
+IMPORTS (UPGRADEABLE versions for clones):
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+CONTRACT INHERITANCE:
+contract HyperLaunchERC721_ImplV2_Optimized is 
+    Initializable,
+    ERC721EnumerableUpgradeable,
+    ERC2981Upgradeable,
+    Ownable2StepUpgradeable,
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable
+
+DATA STRUCTURES:
+struct Sale {
+    uint256 publicPriceWei;
+    uint256 allowlistPriceWei;
+    uint64 publicStart;
+    uint64 publicEnd;
+    uint64 allowlistStart;
+    uint64 allowlistEnd;
+    uint32 maxPerWallet;
+    uint32 maxPerTx;
+}
+
+struct InitParams {
+    string name;
+    string symbol;
+    uint256 maxSupply;
+    string baseURI;
+    address payout;
+    address royaltyReceiver;
+    uint96 royaltyBps;
+    Sale sale;
+    bytes32 merkleRoot;
+    address platformFeeReceiver;
+    uint96 platformFeeBps;
+}
+
+STATE VARIABLES:
+uint256 public maxSupply;
+string public baseURI;
+address public payoutAddress;
+Sale public saleConfig;
+bytes32 public merkleRoot;
+address public platformFeeReceiver;
+uint96 public platformFeeBps;
+mapping(address => uint256) public mintedPerWallet;
+mapping(bytes32 => bool) public usedProofs;  // CRITICAL: Prevents double-spending
+uint96 private constant MAX_ROYALTY_BPS = 1000;     // PRIVATE for gas
+uint96 private constant MAX_PLATFORM_FEE_BPS = 1000; // PRIVATE for gas
+
+EVENTS:
+event Minted(address indexed to, uint256 indexed tokenId, uint256 price);
+event Withdrawn(uint256 creatorAmount, uint256 platformAmount);
+event SaleConfigUpdated(Sale sale);
+event BaseURIUpdated(string baseURI);
+event MerkleRootUpdated(bytes32 merkleRoot);
+event PayoutAddressUpdated(address payout);
+event ProofUsed(bytes32 indexed proofHash, address indexed user);
+
+ERRORS:
+error InvalidConfiguration();
+error SaleNotActive();
+error ExceedsMaxSupply();
+error ExceedsMaxPerWallet();
+error ExceedsMaxPerTx();
+error InvalidPayment();
+error InvalidProof();
+error WithdrawFailed();
+error AlreadyInitialized();
+error TokenDoesNotExist();
+error AllowlistNotActive();
+error ProofAlreadyUsed();  // CRITICAL: Prevents merkle leaf reuse
+
+CONSTRUCTOR (CRITICAL):
+constructor() {
+    _disableInitializers();  // Prevents implementation initialization
+}
+
+INITIALIZATION FUNCTIONS (Two versions):
+
+1. Optimized (struct-based):
+function initialize(InitParams calldata params) external initializer {
+    _validateInitParams(params);
+    _initializeContracts(params.name, params.symbol);
+    _setInitialState(params);
+    _setDefaultRoyalty(params.royaltyReceiver, params.royaltyBps);
+}
+
+2. Legacy (parameter-based):
+function initialize(
+    string memory name_,
+    string memory symbol_,
+    uint256 maxSupply_,
+    string memory baseURI_,
+    address payout_,
+    address royaltyReceiver,
+    uint96 royaltyBps,
+    Sale memory sale_,
+    bytes32 merkleRoot_,
+    address platformFeeReceiver_,
+    uint96 platformFeeBps_
+) external initializer
+
+CORE MINTING FUNCTIONS:
+
+SECURITY REQUIREMENTS:
+- ALL mint functions MUST have nonReentrant modifier FIRST
+- ALL mint functions MUST have whenNotPaused modifier
+- MUST cache storage variables for gas optimization
+- MUST use unchecked { ++i; } in loops
+
+function mintPublic(uint32 quantity) external payable nonReentrant whenNotPaused {
+    Sale memory sale = saleConfig; // Cache storage read
+    
+    if (block.timestamp < sale.publicStart || 
+        (sale.publicEnd != 0 && block.timestamp > sale.publicEnd)) {
+        revert SaleNotActive();
+    }
+    
+    _processMint(msg.sender, quantity, sale.publicPriceWei, sale.maxPerTx, sale.maxPerWallet);
+}
+
+function mintAllowlist(
+    uint32 quantity,
+    bytes32[] calldata proof
+) external payable nonReentrant whenNotPaused {
+    Sale memory sale = saleConfig; // Cache storage
+    bytes32 cachedMerkleRoot = merkleRoot; // Cache storage
+    
+    if (cachedMerkleRoot == bytes32(0)) revert AllowlistNotActive();
+    
+    if (sale.allowlistStart == 0 || block.timestamp < sale.allowlistStart || 
+        (sale.allowlistEnd != 0 && block.timestamp > sale.allowlistEnd)) {
+        revert SaleNotActive();
+    }
+    
+    // CRITICAL: Prevent proof reuse
+    bytes32 proofHash = keccak256(abi.encode(msg.sender, proof));
+    if (usedProofs[proofHash]) {
+        revert ProofAlreadyUsed();
+    }
+    
+    bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+    if (!MerkleProof.verify(proof, cachedMerkleRoot, leaf)) {
+        revert InvalidProof();
+    }
+    
+    usedProofs[proofHash] = true;
+    emit ProofUsed(proofHash, msg.sender);
+    
+    _processMint(msg.sender, quantity, sale.allowlistPriceWei, sale.maxPerTx, sale.maxPerWallet);
+}
+
+GAS-OPTIMIZED LOOP PATTERN:
+for (uint256 i = 0; i < quantity;) {
+    uint256 tokenId = currentSupply + i;
+    _safeMint(to, tokenId);
+    emit Minted(to, tokenId, pricePerToken);
+    
+    unchecked {
+        ++i;  // Saves ~30-40 gas per iteration
+    }
+}
+
+ADMIN FUNCTIONS (MUST be payable for gas optimization):
+function withdraw() external payable onlyOwner nonReentrant;
+function updateSaleConfig(Sale memory sale_) external payable onlyOwner;
+function updateBaseURI(string memory baseURI_) external payable onlyOwner;
+function updateMerkleRoot(bytes32 merkleRoot_) external payable onlyOwner;
+function updatePayoutAddress(address payout_) external payable onlyOwner;
+function setDefaultRoyalty(address receiver, uint96 bps) external payable onlyOwner;
+function pause() external payable onlyOwner;
+function unpause() external payable onlyOwner;
+
+CONTRACT 2: HyperLaunch721FactoryV2_Optimized.sol
+================================================
+
+PURPOSE: Factory that deploys gas-efficient clones of NFT implementation
+
+TECHNICAL REQUIREMENTS:
+pragma solidity 0.8.20;
+import "./HyperLaunchERC721_ImplV2_Optimized.sol";
+
+INTERFACE FOR CLONES:
+interface ICloneableOptimized {
+    function initialize(HyperLaunchERC721_ImplV2_Optimized.InitParams calldata params) external;
+    function initialize(
+        string memory name_,
+        string memory symbol_,
+        uint256 maxSupply_,
+        string memory baseURI_,
+        address payout_,
+        address royaltyReceiver,
+        uint96 royaltyBps,
+        HyperLaunchERC721_ImplV2_Optimized.Sale memory sale_,
+        bytes32 merkleRoot_,
+        address platformFeeReceiver_,
+        uint96 platformFeeBps_
+    ) external;
+    function transferOwnership(address newOwner) external;
+}
+
+FACTORY STATE VARIABLES:
+address public immutable implementation;
+address public owner;
+address public platformFeeReceiver;
+uint96 public platformFeeBps;
+mapping(address => address[]) public creatorDrops;
+address[] public allDrops;
+
+CORE FACTORY FUNCTION:
+function deployDropOptimized(
+    HyperLaunchERC721_ImplV2_Optimized.InitParams calldata params,
+    bytes32 salt
+) external returns (address drop) {
+    drop = salt == bytes32(0) ? _clone(implementation) : _cloneDeterministic(implementation, salt);
+    
+    if (drop == address(0)) revert CloneFailed();
+    
+    HyperLaunchERC721_ImplV2_Optimized.InitParams memory modifiedParams = params;
+    modifiedParams.platformFeeReceiver = platformFeeReceiver;
+    modifiedParams.platformFeeBps = platformFeeBps;
+    
+    ICloneableOptimized(drop).initialize(modifiedParams);
+    ICloneableOptimized(drop).transferOwnership(msg.sender);
+    
+    creatorDrops[msg.sender].push(drop);
+    allDrops.push(drop);
+    
+    emit DropDeployed(msg.sender, drop, salt);
+}
+
+EIP-1167 MINIMAL PROXY IMPLEMENTATION:
+function _clone(address target) private returns (address result) {
+    assembly {
+        let clone := mload(0x40)
+        mstore(clone, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+        mstore(add(clone, 0x14), shl(0x60, target))
+        mstore(add(clone, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
+        result := create(0, clone, 0x37)
+    }
+}
+
+function _cloneDeterministic(address target, bytes32 salt) private returns (address result) {
+    assembly {
+        let clone := mload(0x40)
+        mstore(clone, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+        mstore(add(clone, 0x14), shl(0x60, target))
+        mstore(add(clone, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
+        result := create2(0, clone, 0x37, salt)
+    }
+}
+
+GAS OPTIMIZATION REQUIREMENTS
+============================
+
+MANDATORY Optimizations:
+1. Constants: Make private not public
+2. Admin Functions: Mark as payable
+3. Loop Optimization: Use unchecked { ++i; }
+4. Storage Caching: Cache repeated storage reads
+5. Arithmetic: Use != instead of > for zero checks
+6. String Concatenation: Use bytes.concat() instead of abi.encodePacked()
+
+SECURITY REQUIREMENTS
+====================
+
+1. Reentrancy: nonReentrant modifier on all mint functions
+2. Merkle Proof Tracking: Prevent double-spending with usedProofs mapping
+3. Zero Address Validation: Check all address parameters
+4. Access Control: Proper onlyOwner modifiers
+5. Initialization: Disable initializers in implementation constructor
+
+DEPLOYMENT INSTRUCTIONS
+======================
+
+Step 1: Deploy Implementation
+- Deploy HyperLaunchERC721_ImplV2_Optimized.sol
+- Constructor automatically calls _disableInitializers()
+
+Step 2: Deploy Factory
+- Deploy HyperLaunch721FactoryV2_Optimized.sol
+- Constructor parameters:
+  * impl: address of implementation contract
+  * feeReceiver: platform fee receiver address
+  * feeBps: platform fee in basis points (250 = 2.5%)
+
+Step 3: Usage Flow
+- Call factory.deployDropOptimized() with InitParams
+- Factory creates clone of implementation
+- Factory initializes clone with provided parameters
+- Factory transfers ownership to msg.sender
+- Returns address of new NFT collection
+
+RESULT: Deploy unlimited NFT collections for ~$2-5 each instead of ~$50-100!
+

@@ -1,0 +1,21 @@
+{
+  "name": "hyperlaunch",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm -C apps/interface dev",
+    "build": "pnpm -C apps/interface build && pnpm -C packages/contracts compile",
+    "abi:sync": "node scripts/sync-abis.cjs",
+    "contracts:compile": "pnpm -C packages/contracts compile",
+    "contracts:deploy:testnet": "pnpm -C packages/contracts hardhat run scripts/deploy-hyper721a.ts --network hyperevmTestnet",
+    "contracts:deploy:mainnet": "pnpm -C packages/contracts hardhat run scripts/deploy-hyper721a.ts --network hyperevm"
+  },
+  "devDependencies": {
+    "next": "14.2.5",
+    "tsx": "^4.16.0"
+  }
+}
